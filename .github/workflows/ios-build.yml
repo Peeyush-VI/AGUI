@@ -1,46 +1,123 @@
-name: Build iOS IPA
+name: Build iOS IPA (Ionic Capacitor)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build-ios:
     runs-on: macos-14
 
     steps:
-      - uses: actions/checkout@v4
+      # -------------------------
+      # 1️⃣ Checkout Code
+      # -------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      # -------------------------
+      # 2️⃣ Setup Node (Angular requires Node 20+)
+      # -------------------------
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
 
-      - run: npm ci
+      # -------------------------
+      # 3️⃣ Install Dependencies
+      # -------------------------
+      - name: Install NPM packages
+        run: npm ci
 
-      - run: |
-          npm run build
-          npx cap sync ios
+      # -------------------------
+      # 4️⃣ Build Ionic Web App
+      # -------------------------
+      - name: Build Ionic App
+        run: npm run build
 
-      - name: Build Archive
+      # -------------------------
+      # 5️⃣ Sync Capacitor iOS
+      # -------------------------
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      # -------------------------
+      # 6️⃣ Install CocoaPods
+      # -------------------------
+      - name: Install CocoaPods
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace \
+          pod repo update
+          pod install
+
+      # -------------------------
+      # 7️⃣ Clean Derived Data (avoid random CI issues)
+      # -------------------------
+      - name: Clean Xcode Derived Data
+        run: rm -rf ~/Library/Developer/Xcode/DerivedData
+
+      # -------------------------
+      # 8️⃣ Archive iOS App
+      # -------------------------
+      - name: Archive iOS App
+        run: |
+          cd ios/App
+          xcodebuild \
+            -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -archivePath build/App.xcarchive \
-            archive
+            archive \
+            CODE_SIGNING_ALLOWED=NO
 
+      # -------------------------
+      # 9️⃣ Create ExportOptions.plist (Unsigned)
+      # -------------------------
+      - name: Create ExportOptions.plist
+        run: |
+          cat > ios/App/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+          "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>development</string>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>manual</string>
+          </dict>
+          </plist>
+          EOF
+
+      # -------------------------
+      # 🔟 Export IPA
+      # -------------------------
       - name: Export IPA
         run: |
           cd ios/App
-          xcodebuild -exportArchive \
+          xcodebuild \
+            -exportArchive \
             -archivePath build/App.xcarchive \
             -exportPath build \
             -exportOptionsPlist ExportOptions.plist
 
+      # -------------------------
+      # 1️⃣1️⃣ Debug Build Folder
+      # -------------------------
+      - name: List Build Folder
+        run: ls -R ios/App/build
+
+      # -------------------------
+      # 1️⃣2️⃣ Upload IPA (v4)
+      # -------------------------
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
           path: ios/App/build/**/*.ipa
+          if-no-files-found: error
