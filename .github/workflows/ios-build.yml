@@ -11,58 +11,39 @@ jobs:
     runs-on: macos-14
 
     steps:
-      # -------------------------
-      # 1️⃣ Checkout Code
-      # -------------------------
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      # 1️⃣ Checkout
+      - uses: actions/checkout@v4
 
-      # -------------------------
-      # 2️⃣ Setup Node (Angular requires Node 20+)
-      # -------------------------
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # 2️⃣ Setup Node
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
 
-      # -------------------------
-      # 3️⃣ Install Dependencies
-      # -------------------------
-      - name: Install NPM packages
-        run: npm ci
+      # 3️⃣ Install dependencies
+      - run: npm ci
 
-      # -------------------------
-      # 4️⃣ Build Ionic Web App
-      # -------------------------
-      - name: Build Ionic App
-        run: npm run build
+      # 4️⃣ Build web
+      - run: npm run build
 
-      # -------------------------
-      # 5️⃣ Sync Capacitor iOS
-      # -------------------------
-      - name: Sync Capacitor
-        run: npx cap sync ios
+      # 5️⃣ Add iOS platform (IMPORTANT)
+      - name: Add iOS Platform
+        run: npx cap add ios
 
-      # -------------------------
-      # 6️⃣ Install CocoaPods
-      # -------------------------
+      # 6️⃣ Sync Capacitor
+      - run: npx cap sync ios
+
+      # 7️⃣ Install CocoaPods
       - name: Install CocoaPods
         run: |
           cd ios/App
-          pod repo update
           pod install
 
-      # -------------------------
-      # 7️⃣ Clean Derived Data (avoid random CI issues)
-      # -------------------------
-      - name: Clean Xcode Derived Data
-        run: rm -rf ~/Library/Developer/Xcode/DerivedData
+      # 8️⃣ Clean Derived Data
+      - run: rm -rf ~/Library/Developer/Xcode/DerivedData
 
-      # -------------------------
-      # 8️⃣ Archive iOS App
-      # -------------------------
-      - name: Archive iOS App
+      # 9️⃣ Archive App
+      - name: Archive App
         run: |
           cd ios/App
           xcodebuild \
@@ -73,9 +54,7 @@ jobs:
             archive \
             CODE_SIGNING_ALLOWED=NO
 
-      # -------------------------
-      # 9️⃣ Create ExportOptions.plist (Unsigned)
-      # -------------------------
+      # 🔟 Create ExportOptions.plist
       - name: Create ExportOptions.plist
         run: |
           cat > ios/App/ExportOptions.plist <<EOF
@@ -88,15 +67,11 @@ jobs:
               <string>development</string>
               <key>compileBitcode</key>
               <false/>
-              <key>signingStyle</key>
-              <string>manual</string>
           </dict>
           </plist>
           EOF
 
-      # -------------------------
-      # 🔟 Export IPA
-      # -------------------------
+      # 1️⃣1️⃣ Export IPA
       - name: Export IPA
         run: |
           cd ios/App
@@ -106,15 +81,7 @@ jobs:
             -exportPath build \
             -exportOptionsPlist ExportOptions.plist
 
-      # -------------------------
-      # 1️⃣1️⃣ Debug Build Folder
-      # -------------------------
-      - name: List Build Folder
-        run: ls -R ios/App/build
-
-      # -------------------------
-      # 1️⃣2️⃣ Upload IPA (v4)
-      # -------------------------
+      # 1️⃣2️⃣ Upload IPA
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
