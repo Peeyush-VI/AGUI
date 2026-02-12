@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">aguimob</string>
+    <string name="title_activity_main">aguimob</string>
+    <string name="package_name">com.aguimob</string>
+    <string name="custom_url_scheme">com.aguimob</string>
+</resources>
